@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>debit-pintu-sorong</title>
+  <meta name="theme-color" content="#3f51b5" />
+  <meta name="description" content="PWA kalkulator debit pintu sorong dengan aliran bebas dan tenggelam." />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./assets/icon-192.png" />
+  <style>
+    :root {
+      --bg: #efefef;
+      --surface: #f4f4f4;
+      --text: #111;
+      --muted: #555;
+      --line: #9e9e9e;
+      --accent: #3f51b5;
+      --field: #d35c9d;
+      --white: #fff;
+      --shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
+    body { min-height: 100vh; }
+    .appbar {
+      background: var(--accent);
+      color: var(--white);
+      padding: max(16px, env(safe-area-inset-top)) 14px 18px;
+      font-size: 24px;
+      font-weight: 700;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .info-btn {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      color: var(--white);
+      background: transparent;
+      flex: 0 0 auto;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+    }
+    .info-btn svg { width: 22px; height: 22px; }
+    .info-btn:active, .info-btn:hover { background: rgba(255,255,255,0.12); }
+    .wrap { max-width: 460px; margin: 0 auto; min-height: 100vh; background: var(--bg); }
+    .result {
+      text-align: center;
+      padding: 42px 16px 34px;
+      border-bottom: 1px solid var(--line);
+    }
+    .result-main {
+      display: inline-flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1;
+    }
+    .result-value {
+      font-size: clamp(60px, 14vw, 76px);
+      font-weight: 700;
+      letter-spacing: -2px;
+    }
+    .result-unit {
+      font-size: 22px;
+      padding-top: 12px;
+    }
+    .form {
+      padding: 26px 20px 18px;
+      display: grid;
+      gap: 22px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1.4fr 92px 64px;
+      gap: 8px;
+      align-items: end;
+    }
+    .label {
+      font-size: 18px;
+      line-height: 1.25;
+    }
+    .field {
+      width: 100%;
+      border: none;
+      border-bottom: 2px solid var(--field);
+      background: transparent;
+      font-size: 18px;
+      padding: 4px 2px 3px;
+      color: var(--text);
+      outline: none;
+      border-radius: 0;
+    }
+    .unit { font-size: 18px; }
+    .notes {
+      border-top: 1px solid var(--line);
+      margin: 16px 0 0;
+      padding: 14px 20px 48px;
+      font-size: 14px;
+      line-height: 1.35;
+      color: #222;
+    }
+    .notes strong { display: block; margin-bottom: 4px; }
+    .status {
+      margin-top: 10px;
+      color: var(--muted);
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      padding: 0 20px 20px;
+      flex-wrap: wrap;
+    }
+    button.action {
+      border: none;
+      background: var(--accent);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button.secondary { background: #6c757d; }
+    .install-tip { padding: 0 20px 24px; color: var(--muted); font-size: 13px; }
+    .error-box { margin: 0 20px 14px; padding: 10px 12px; background: #fdecee; color: #8a1f2d; border: 1px solid #efb7bf; border-radius: 10px; font-size: 14px; line-height: 1.4; display: none; }
+    .field.invalid { border-bottom-color: #c62828; }
+    .info-dialog { border: none; padding: 0; background: transparent; max-width: min(94vw, 420px); width: 100%; }
+    .info-dialog::backdrop { background: rgba(0,0,0,0.35); }
+    .dialog-card { background: #fff; color: #111; border-radius: 14px; box-shadow: 0 14px 40px rgba(0,0,0,0.28); overflow: hidden; }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 10px; border-bottom: 1px solid #e5e5e5; }
+    .dialog-head h2 { margin: 0; font-size: 20px; }
+    .dialog-body { padding: 14px 18px 20px; font-size: 15px; line-height: 1.45; max-height: 72vh; overflow: auto; }
+    .close-btn { color: #444; font-size: 20px; width: 34px; height: 34px; border-radius: 999px; border: none; background: transparent; cursor: pointer; }
+    .close-btn:active, .close-btn:hover { background: #eee; }
+    .eq-block { text-align: center; font-style: italic; font-size: 22px; margin: 6px 0 12px; font-family: 'Times New Roman', serif; line-height: 1.25; word-break: break-word; }
+    .eq-small { text-align: center; font-style: italic; font-size: 17px; margin: 6px 0 12px; font-family: 'Times New Roman', serif; line-height: 1.35; word-break: break-word; }
+    .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; }
+    .frac .top { border-bottom: 1.5px solid #111; padding: 0 4px 2px; line-height: 1.1; }
+    .frac .bottom { padding-top: 2px; line-height: 1.1; }
+    .sqrt { display: inline-flex; align-items: flex-start; }
+    .sqrt .root { font-size: 26px; line-height: 0.9; margin-right: 2px; }
+    .sqrt .radicand { border-top: 1.5px solid #111; padding: 2px 3px 0; }
+    .formula-note { margin: 10px 0 6px; }
+    .defs { margin-top: 10px; }
+    .defs div { margin: 2px 0; }
+    .inline-eqs { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-style: italic; font-family: 'Times New Roman', serif; font-size: 16px; }
+    .inline-eqs span { white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="appbar">
+      <button class="info-btn" id="infoBtn" aria-label="Informasi aplikasi" title="Informasi aplikasi">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"></circle>
+          <circle cx="12" cy="8" r="1.3" fill="currentColor"></circle>
+          <path d="M12 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+      </button>
+      <span>Debit Pintu Sorong</span>
+    </header>
+
+    <section class="result" aria-live="polite">
+      <div class="result-main">
+        <div id="resultValue" class="result-value">0.00</div>
+        <div class="result-unit">l/s</div>
+      </div>
+    </section>
+
+    <main class="form">
+      <label class="row">
+        <span class="label">Tinggi air di hulu</span>
+        <input id="h1" class="field" type="number" step="any" min="0.01" value="0" aria-describedby="errorBox" />
+        <span class="unit">cm</span>
+      </label>
+
+      <label class="row">
+        <span class="label">Tinggi air di hilir</span>
+        <input id="h2" class="field" type="number" step="any" min="0" value="0" aria-describedby="errorBox" />
+        <span class="unit">cm</span>
+      </label>
+
+      <label class="row">
+        <span class="label">Bukaan pintu</span>
+        <input id="a" class="field" type="number" step="any" min="0.01" value="0" aria-describedby="errorBox" />
+        <span class="unit">cm</span>
+      </label>
+
+      <label class="row">
+        <span class="label">Lebar</span>
+        <input id="b" class="field" type="number" step="any" min="0.01" value="0" aria-describedby="errorBox" />
+        <span class="unit">cm</span>
+      </label>
+
+      <label class="row">
+        <span class="label">Koefisien Kontraksi (Cc)</span>
+        <input id="cc" class="field" type="number" step="any" min="0.01" max="0.999" value="0.6" aria-describedby="errorBox" />
+        <span class="unit"></span>
+      </label>
+    </main>
+
+    <div id="errorBox" class="error-box" role="alert" aria-live="assertive"></div>
+
+    <div class="actions">
+      <button id="installBtn" class="action" hidden>Install App</button>
+      <button id="resetBtn" class="action secondary">Reset</button>
+    </div>
+
+    <section class="notes">
+      <strong>Keterangan:</strong>
+      <div id="cdLine">Koefisien aliran (Cd) = 0.58</div>
+      <div id="flowLine">Kondisi aliran bebas (free flow)</div>
+      <div class="status" id="detailLine"></div>
+    </section>
+
+    <dialog id="infoDialog" class="info-dialog" aria-labelledby="infoTitle" aria-describedby="infoDesc">
+      <div class="dialog-card">
+        <div class="dialog-head">
+          <h2 id="infoTitle">Tentang aplikasi</h2>
+          <button id="closeDialogBtn" class="close-btn" aria-label="Tutup informasi">✕</button>
+        </div>
+        <div id="infoDesc" class="dialog-body">
+          <div class="formula-note">Aplikasi ini dikembangkan oleh Balai Teknik Irigasi, Kementerian PU. Perhitungan debit dilakukan berdasarkan persamaan sebagai berikut:</div>
+          <div class="eq-block">Q = C<sub>d</sub>Ba√2gh<sub>1</sub></div>
+
+          <div class="formula-note">Koefisien debit pada kondisi aliran bebas (<i>free flow</i>) adalah:</div>
+
+          <div class="eq-small">C<sub>d</sub> =
+            <span class="frac">
+              <span class="top">c<sub>c</sub></span>
+              <span class="bottom">√1+η</span>
+            </span>
+          </div>
+
+          <div class="formula-note">Koefisien debit pada kondisi aliran tenggelam (<i>submerged flow</i>) adalah:</div>
+          <div class="eq-small">C<sub>d</sub> = C<sub>c</sub>
+            <span class="frac">
+              <span class="top">[
+                <span class="sqrt"><span class="root">√</span><span class="radicand">ξ − √ξ<sup>2</sup> − (1/(ηη) − 1)<sup>2</sup>(1 − 1/λ<sup>2</sup>)</span></span>
+                ]<sup>1/2</sup>
+              </span>
+              <span class="bottom">1/η − η</span>
+            </span>
+          </div>
+
+          <div class="formula-note">Aliran tenggelam terjadi jika:</div>
+          <div class="eq-small">h<sub>1</sub> > h<sub>2</sub> ≥
+            <span class="frac">
+              <span class="top">C<sub>c</sub>a</span>
+              <span class="bottom">2</span>
+            </span>
+            (√(1 +
+            <span class="frac">
+              <span class="top">16</span>
+              <span class="bottom">η(1+η)</span>
+            </span>
+            ) − 1)
+          </div>
+
+          <div class="defs">
+            <strong>Keterangan:</strong>
+            <div>Cd = koefisien debit</div>
+            <div>a = bukaan pintu (m)</div>
+            <div>B = lebar pintu (m)</div>
+            <div>g = percepatan gravitasi (9,81 m/s<sup>2</sup>)</div>
+            <div>h<sub>1</sub> = tinggi muka air di hulu pintu (m)</div>
+            <div>h<sub>2</sub> = tinggi muka air di hilir pintu (m)</div>
+            <div>Q = debit (m<sup>3</sup>/s)</div>
+            <div>Cc = koefisien kontraksi</div>
+            <div>λ, η dan ξ merupakan parameter dihitung menggunakan persamaan berikut:</div>
+          </div>
+
+          <div class="inline-eqs">
+            <span>λ = h<sub>1</sub>/h<sub>2</sub></span>
+            <span>η = C<sub>c</sub>a/h<sub>1</sub></span>
+            <span>ξ = (1/η − 1)<sup>2</sup> + 2(λ − 1)</span>
+
+
+          </div>
+          <div class="install-tip"><br><br>Untuk instalasi, buka di Chrome Android lalu pilih “Install app” atau “Add to Home screen”.</div>
+        </div>
+      </div>
+    </dialog>
+  </div>
+
+
+  <script>
+    const g = 9.81;
+    const defaults = { h1: 0, h2: 0, a: 0, b: 0, cc: 0.6 };
+    const els = Object.fromEntries(['h1','h2','a','b','cc'].map(id => [id, document.getElementById(id)]));
+    const resultValue = document.getElementById('resultValue');
+    const cdLine = document.getElementById('cdLine');
+    const flowLine = document.getElementById('flowLine');
+    const detailLine = document.getElementById('detailLine');
+
+    function cmToM(v) { return v / 100; }
+    function round(v, n=2) { return Number.isFinite(v) ? Number(v).toFixed(n) : '0.00'; }
+
+    const errorBox = document.getElementById('errorBox');
+
+    function invalidate(ids, message) {
+      Object.values(els).forEach(el => el.classList.remove('invalid'));
+      ids.forEach(id => els[id].classList.add('invalid'));
+      errorBox.style.display = 'block';
+      errorBox.textContent = message;
+      resultValue.textContent = '0.00';
+      cdLine.textContent = 'Koefisien aliran (Cd) = -';
+      flowLine.textContent = 'Masukkan nilai yang valid';
+      detailLine.textContent = '';
+    }
+
+    function clearError() {
+      Object.values(els).forEach(el => el.classList.remove('invalid'));
+      errorBox.style.display = 'none';
+      errorBox.textContent = '';
+    }
+
+    function calculate() {
+      const raw = {
+        h1: parseFloat(els.h1.value),
+        h2: parseFloat(els.h2.value),
+        a: parseFloat(els.a.value),
+        b: parseFloat(els.b.value),
+        cc: parseFloat(els.cc.value)
+      };
+
+      if (Object.values(raw).some(v => !Number.isFinite(v))) return invalidate(['h1','h2','a','b','cc'], 'Semua input harus berupa angka yang valid.');
+      if (raw.h1 <= 0) return invalidate(['h1'], 'Tinggi air di hulu harus lebih besar dari 0 cm.');
+      if (raw.h2 < 0) return invalidate(['h2'], 'Tinggi air di hilir tidak boleh negatif.');
+      if (raw.a <= 0) return invalidate(['a'], 'Bukaan pintu harus lebih besar dari 0 cm.');
+      if (raw.b <= 0) return invalidate(['b'], 'Lebar pintu harus lebih besar dari 0 cm.');
+      if (raw.cc <= 0 || raw.cc >= 1) return invalidate(['cc'], 'Koefisien kontraksi (Cc) harus di antara 0 dan 1.');
+      if (raw.h2 > raw.h1) return invalidate(['h2','h1'], 'Tinggi air di hilir tidak boleh lebih besar dari tinggi air di hulu.');
+      if (raw.a > raw.h1) return invalidate(['a','h1'], 'Bukaan pintu tidak boleh lebih besar dari tinggi air di hulu.');
+
+      const h1 = cmToM(raw.h1);
+      const h2 = cmToM(raw.h2);
+      const a = cmToM(raw.a);
+      const B = cmToM(raw.b);
+      const Cc = raw.cc;
+      const lambda = h2 > 0 ? h1 / h2 : Infinity;
+      const eta = (Cc * a) / h1;
+      const xi = Math.pow((1 / eta) - 1, 2) + 2 * (lambda - 1);
+
+      if (!Number.isFinite(eta) || eta <= 0) return invalidate(['cc','a','h1'], 'Nilai η tidak valid. Periksa Cc, bukaan pintu, dan tinggi air di hulu.');
+      if (!Number.isFinite(lambda) && h2 !== 0) return invalidate(['h1','h2'], 'Nilai λ tidak valid.');
+      if (!Number.isFinite(xi)) return invalidate(['h1','h2','a','cc'], 'Nilai ξ tidak valid dari kombinasi input saat ini.');
+
+      let Cd;
+      let flowType;
+      const freeFlowLimit = (Cc * a / 2) * (Math.sqrt(1 + (16 / (eta * (1 + eta)))) - 1);
+      if (!Number.isFinite(freeFlowLimit) || freeFlowLimit < 0) return invalidate(['h1','h2','a','cc'], 'Batas aliran bebas tidak valid dari kombinasi input saat ini.');
+      const freeFlow = h2 < freeFlowLimit;
+
+      if (freeFlow) {
+        Cd = Cc / Math.sqrt(1 + eta);
+        flowType = 'Kondisi aliran bebas (free flow)';
+      } else {
+        const radicand2 = (xi * xi) - Math.pow((1 / (eta * eta)) - 1, 2) * (1 - (1 / (lambda * lambda)));
+        if (!Number.isFinite(radicand2) || radicand2 < 0) return invalidate(['h1','h2','a','cc'], 'Persamaan submerged flow menghasilkan akar negatif. Periksa input.');
+        const bracket = xi - Math.sqrt(radicand2);
+        if (!Number.isFinite(bracket) || bracket < 0) return invalidate(['h1','h2','a','cc'], 'Bagian dalam akar pada Cd submerged flow tidak valid.');
+        const numerator = Math.sqrt(bracket);
+        const denominator = (1 / eta) - eta;
+        if (!Number.isFinite(denominator) || denominator <= 0) return invalidate(['h1','a','cc'], 'Penyebut pada persamaan Cd submerged flow tidak valid.');
+        Cd = Cc * (numerator / denominator);
+        flowType = 'Kondisi aliran tenggelam (submerged flow)';
+        if (!Number.isFinite(Cd) || Cd <= 0) return invalidate(['h1','h2','a','cc'], 'Nilai Cd tidak valid dari persamaan submerged flow.');
+      }
+
+      const Q = Cd * B * a * Math.sqrt(2 * g * h1);
+      const litersPerSecond = Q * 1000;
+      if (!Number.isFinite(Q) || Q < 0) return invalidate(['h1','h2','a','b','cc'], 'Debit hasil perhitungan tidak valid.');
+
+      clearError();
+      resultValue.textContent = round(litersPerSecond);
+      cdLine.textContent = `Koefisien aliran (Cd) = ${round(Cd, 2)}`;
+      flowLine.textContent = flowType;
+      detailLine.textContent = `Q = ${round(Q, 4)} m³/s, λ = ${Number.isFinite(lambda) ? round(lambda, 3) : '-'}, η = ${round(eta, 3)}, ξ = ${Number.isFinite(xi) ? round(xi, 3) : '-'}, batas bebas = ${Number.isFinite(freeFlowLimit) ? round(freeFlowLimit, 3) : '-'} m`;
+    }
+
+    Object.values(els).forEach(el => el.addEventListener('input', calculate));
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      Object.entries(defaults).forEach(([k,v]) => els[k].value = v);
+      calculate();
+    });
+
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.hidden = false;
+    });
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.hidden = true;
+    });
+
+    const infoBtn = document.getElementById('infoBtn');
+    const infoDialog = document.getElementById('infoDialog');
+    const closeDialogBtn = document.getElementById('closeDialogBtn');
+    infoBtn.addEventListener('click', () => infoDialog.showModal());
+    closeDialogBtn.addEventListener('click', () => infoDialog.close());
+    infoDialog.addEventListener('click', (e) => {
+      const rect = infoDialog.getBoundingClientRect();
+      const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (!inside) infoDialog.close();
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+    }
+
+    calculate();
+  </script>
+</body>
+</html>
