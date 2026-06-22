@@ -176,31 +176,31 @@
     <main class="form">
       <label class="row">
         <span class="label">Tinggi air di hulu</span>
-        <input id="h1" class="field" type="number" step="any" min="0.01" value="0" aria-describedby="errorBox" />
+        <input id="h1" class="field" type="number" step="0.5" min="0.0" value="0" aria-describedby="errorBox" />
         <span class="unit">cm</span>
       </label>
 
       <label class="row">
         <span class="label">Tinggi air di hilir</span>
-        <input id="h2" class="field" type="number" step="any" min="0" value="0" aria-describedby="errorBox" />
+        <input id="h2" class="field" type="number" step="0.5" min="0.0" value="0" aria-describedby="errorBox" />
         <span class="unit">cm</span>
       </label>
 
       <label class="row">
         <span class="label">Bukaan pintu</span>
-        <input id="a" class="field" type="number" step="any" min="0.01" value="0" aria-describedby="errorBox" />
+        <input id="a" class="field" type="number" step="0.5" min="0.0" value="0" aria-describedby="errorBox" />
         <span class="unit">cm</span>
       </label>
 
       <label class="row">
         <span class="label">Lebar</span>
-        <input id="b" class="field" type="number" step="any" min="0.01" value="0" aria-describedby="errorBox" />
+        <input id="b" class="field" type="number" step="0.5" min="0.0" value="0" aria-describedby="errorBox" />
         <span class="unit">cm</span>
       </label>
 
       <label class="row">
         <span class="label">Koefisien Kontraksi (Cc)</span>
-        <input id="cc" class="field" type="number" step="any" min="0.01" max="0.999" value="0.6" aria-describedby="errorBox" />
+        <input id="cc" class="field" type="number" step="0.01" min="0.01" max="0.999" value="0.6" aria-describedby="errorBox" />
         <span class="unit"></span>
       </label>
     </main>
@@ -310,10 +310,21 @@
       ids.forEach(id => els[id].classList.add('invalid'));
       errorBox.style.display = 'block';
       errorBox.textContent = message;
-      resultValue.textContent = '0.00';
+      resultValue.textContent = '----';
       cdLine.textContent = 'Koefisien aliran (Cd) = -';
       flowLine.textContent = 'Masukkan nilai yang valid';
       detailLine.textContent = '';
+    }
+
+    function notify(ids, message) {
+      // Object.values(els).forEach(el => el.classList.remove('invalid'));
+      // ids.forEach(id => els[id].classList.add('invalid'));
+      errorBox.style.display = 'block';
+      errorBox.textContent = message;
+      // resultValue.textContent = '----';
+      // cdLine.textContent = 'Koefisien aliran (Cd) = -';
+      // flowLine.textContent = 'Masukkan nilai yang valid';
+      // detailLine.textContent = '';
     }
 
     function clearError() {
@@ -338,11 +349,17 @@
       if (raw.b <= 0) return invalidate(['b'], 'Lebar pintu harus lebih besar dari 0 cm.');
       if (raw.cc <= 0 || raw.cc >= 1) return invalidate(['cc'], 'Koefisien kontraksi (Cc) harus di antara 0 dan 1.');
       if (raw.h2 > raw.h1) return invalidate(['h2','h1'], 'Tinggi air di hilir tidak boleh lebih besar dari tinggi air di hulu.');
-      if (raw.a > raw.h1) return invalidate(['a','h1'], 'Bukaan pintu tidak boleh lebih besar dari tinggi air di hulu.');
-
+      if (raw.a > 0.83 *raw.h1) return invalidate(['a','h1'], 'Bukaan pintu terlalu besar (a > 0.83 h1), rumus debit tidak berlaku.');
+      
       const h1 = cmToM(raw.h1);
-      const h2 = cmToM(raw.h2);
-      const a = cmToM(raw.a);
+      const a = cmToM(raw.a);     
+      let h2
+      if (raw.h2 <= 0) {
+        h2 = 0.01*h1; // set h2 to 1% of h1 if h2 is very low
+        // notify(['h2'], 'Tinggi air di hilir ≤ 0, perhitunan menggunakan aliran bebas (free flow).'); 
+      } else {
+          h2 = cmToM(raw.h2); 
+      }
       const B = cmToM(raw.b);
       const Cc = raw.cc;
       const lambda = h2 > 0 ? h1 / h2 : Infinity;
@@ -350,7 +367,7 @@
       const xi = Math.pow((1 / eta) - 1, 2) + 2 * (lambda - 1);
 
       if (!Number.isFinite(eta) || eta <= 0) return invalidate(['cc','a','h1'], 'Nilai η tidak valid. Periksa Cc, bukaan pintu, dan tinggi air di hulu.');
-      if (!Number.isFinite(lambda) && h2 !== 0) return invalidate(['h1','h2'], 'Nilai λ tidak valid.');
+      if (!Number.isFinite(lambda)) return invalidate(['h1','h2'], 'Nilai λ tidak valid.');
       if (!Number.isFinite(xi)) return invalidate(['h1','h2','a','cc'], 'Nilai ξ tidak valid dari kombinasi input saat ini.');
 
       let Cd;
