@@ -333,13 +333,17 @@
       errorBox.textContent = '';
     }
 
+    function parseLocaleFloat(v) {
+      return parseFloat(String(v).trim().replace(',', '.'));
+    }
+
     function calculate() {
       const raw = {
-        h1: parseFloat(els.h1.value),
-        h2: parseFloat(els.h2.value),
-        a: parseFloat(els.a.value),
-        b: parseFloat(els.b.value),
-        cc: parseFloat(els.cc.value)
+        h1: parseLocaleFloat(els.h1.value),
+        h2: parseLocaleFloat(els.h2.value),
+        a: parseLocaleFloat(els.a.value),
+        b: parseLocaleFloat(els.b.value),
+        cc: parseLocaleFloat(els.cc.value)
       };
 
       if (Object.values(raw).some(v => !Number.isFinite(v))) return invalidate(['h1','h2','a','b','cc'], 'Semua input harus berupa angka yang valid.');
