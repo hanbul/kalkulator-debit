@@ -1,12 +1,10 @@
 const CACHE = 'kalkulator-debit-v1';
 const ASSETS = [
-  './index.html',
   './debit-pintu-sorong.html',
   './manifest.json',
   './service-worker.js',
   './assets/icon-192.png',
-  './assets/icon-512.png',
-  './assets/eq-info.png'
+  './assets/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
