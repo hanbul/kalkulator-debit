@@ -1,4 +1,4 @@
-const CACHE = 'kalkulator-debit-v1';
+const CACHE = 'kalkulator-debit-v1.1';
 const ASSETS = [
   './debit-pintu-sorong.html',
   './manifest.json',
@@ -11,7 +11,10 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE).then(cache => cache.addAll(ASSETS))
   );
-  self.skipWaiting();
+});
+
+self.addEventListener('message', event => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {

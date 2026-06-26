@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="light">
+<html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -48,6 +48,7 @@
       border: none;
       cursor: pointer;
     }
+    .info-btn[hidden] { display: none; }
     .info-btn svg { width: 22px; height: 22px; }
     .info-btn:active, .info-btn:hover { background: rgba(255,255,255,0.12); }
     .wrap { max-width: 460px; margin: 0 auto; min-height: 100vh; background: var(--bg); }
@@ -165,6 +166,12 @@
         </svg>
       </button>
       <span>Debit Pintu Sorong</span>
+      <button class="info-btn" id="updateBtn" aria-label="Update tersedia" title="Update tersedia" hidden style="margin-left: auto;">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 4v6l4 2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"></path>
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"></circle>
+        </svg>
+      </button>
     </header>
 
     <section class="result" aria-live="polite">
@@ -289,11 +296,32 @@
         </div>
       </div>
     </dialog>
+
+    <dialog id="updateDialog" class="info-dialog">
+      <div class="dialog-card">
+        <div class="dialog-head">
+          <h2>Update tersedia</h2>
+          <button id="closeUpdateBtn" class="close-btn" aria-label="Tutup">✕</button>
+        </div>
+        <div class="dialog-body">
+          <p>Terdapat pembaharuan aplikasi baru:</p>
+          <ul id="updateNotes"></ul>
+          <button class="action" id="confirmUpdateBtn">Update sekarang</button>
+        </div>
+      </div>
+    </dialog>
   </div>
 
 
   <script>
     const g = 9.81;
+    const CHANGELOG = {
+      version: 'v1.1',
+      notes: [
+        'Perbaikan bug saat instalasi dan perhitungan desimal',
+        'Perbaikan notifikasi input'
+      ]
+    };
     const defaults = { h1: 0, h2: 0, a: 0, b: 0, cc: 0.6 };
     const els = Object.fromEntries(['h1','h2','a','b','cc'].map(id => [id, document.getElementById(id)]));
     const resultValue = document.getElementById('resultValue');
@@ -443,9 +471,35 @@
       if (!inside) infoDialog.close();
     });
 
+    const updateBtn = document.getElementById('updateBtn');
+    const updateDialog = document.getElementById('updateDialog');
+    const closeUpdateBtn = document.getElementById('closeUpdateBtn');
+    const confirmUpdateBtn = document.getElementById('confirmUpdateBtn');
+    document.getElementById('updateNotes').innerHTML =
+      CHANGELOG.notes.map(note => `<li>${note}</li>`).join('');
+
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').then(reg => {
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                updateBtn.hidden = false;
+              }
+            });
+          });
+        });
+      });
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
     }
+
+    updateBtn.addEventListener('click', () => updateDialog.showModal());
+    closeUpdateBtn.addEventListener('click', () => updateDialog.close());
+    confirmUpdateBtn.addEventListener('click', () => {
+      navigator.serviceWorker.getRegistration().then(reg => reg.waiting?.postMessage('SKIP_WAITING'));
+    });
 
     calculate();
   </script>
