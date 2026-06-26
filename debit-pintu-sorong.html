@@ -129,6 +129,7 @@
     button.secondary { background: #6c757d; }
     .install-tip { padding: 0 20px 24px; color: var(--muted); font-size: 13px; }
     .error-box { margin: 0 20px 14px; padding: 10px 12px; background: #fdecee; color: #8a1f2d; border: 1px solid #efb7bf; border-radius: 10px; font-size: 14px; line-height: 1.4; display: none; }
+    .error-box.warning { background: #fff4de; color: #8a5a00; border-color: #f0c987; }
     .field.invalid { border-bottom-color: #c62828; }
     .info-dialog { border: none; padding: 0; background: transparent; max-width: min(94vw, 420px); width: 100%; }
     .info-dialog::backdrop { background: rgba(0,0,0,0.35); }
@@ -308,6 +309,7 @@
     function invalidate(ids, message) {
       Object.values(els).forEach(el => el.classList.remove('invalid'));
       ids.forEach(id => els[id].classList.add('invalid'));
+      errorBox.classList.remove('warning');
       errorBox.style.display = 'block';
       errorBox.textContent = message;
       resultValue.textContent = '----';
@@ -316,19 +318,15 @@
       detailLine.textContent = '';
     }
 
-    function notify(ids, message) {
-      // Object.values(els).forEach(el => el.classList.remove('invalid'));
-      // ids.forEach(id => els[id].classList.add('invalid'));
+    function notify(message) {
+      errorBox.classList.add('warning');
       errorBox.style.display = 'block';
       errorBox.textContent = message;
-      // resultValue.textContent = '----';
-      // cdLine.textContent = 'Koefisien aliran (Cd) = -';
-      // flowLine.textContent = 'Masukkan nilai yang valid';
-      // detailLine.textContent = '';
     }
 
     function clearError() {
       Object.values(els).forEach(el => el.classList.remove('invalid'));
+      errorBox.classList.remove('warning');
       errorBox.style.display = 'none';
       errorBox.textContent = '';
     }
@@ -346,6 +344,8 @@
         cc: parseLocaleFloat(els.cc.value)
       };
 
+      let warning = null;
+
       if (Object.values(raw).some(v => !Number.isFinite(v))) return invalidate(['h1','h2','a','b','cc'], 'Semua input harus berupa angka yang valid.');
       if (raw.h1 <= 0) return invalidate(['h1'], 'Tinggi air di hulu harus lebih besar dari 0 cm.');
       if (raw.h2 < 0) return invalidate(['h2'], 'Tinggi air di hilir tidak boleh negatif.');
@@ -354,15 +354,15 @@
       if (raw.cc <= 0 || raw.cc >= 1) return invalidate(['cc'], 'Koefisien kontraksi (Cc) harus di antara 0 dan 1.');
       if (raw.h2 > raw.h1) return invalidate(['h2','h1'], 'Tinggi air di hilir tidak boleh lebih besar dari tinggi air di hulu.');
       if (raw.a > 0.83 *raw.h1) return invalidate(['a','h1'], 'Bukaan pintu terlalu besar (a > 0.83 h1), rumus debit tidak berlaku.');
-      
+
       const h1 = cmToM(raw.h1);
-      const a = cmToM(raw.a);     
+      const a = cmToM(raw.a);
       let h2
       if (raw.h2 <= 0) {
         h2 = 0.01*h1; // set h2 to 1% of h1 if h2 is very low
-        // notify(['h2'], 'Tinggi air di hilir ≤ 0, perhitunan menggunakan aliran bebas (free flow).'); 
+        warning = warning || 'Tinggi air di hilir ≤ 0, perhitungan menggunakan aliran bebas (free flow).';
       } else {
-          h2 = cmToM(raw.h2); 
+          h2 = cmToM(raw.h2);
       }
       const B = cmToM(raw.b);
       const Cc = raw.cc;
@@ -400,7 +400,11 @@
       const litersPerSecond = Q * 1000;
       if (!Number.isFinite(Q) || Q < 0) return invalidate(['h1','h2','a','b','cc'], 'Debit hasil perhitungan tidak valid.');
 
-      clearError();
+      if (warning) {
+        notify(warning);
+      } else {
+        clearError();
+      }
       resultValue.textContent = round(litersPerSecond);
       cdLine.textContent = `Koefisien aliran (Cd) = ${round(Cd, 2)}`;
       flowLine.textContent = flowType;
