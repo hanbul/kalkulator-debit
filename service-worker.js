@@ -1,6 +1,7 @@
-const CACHE = 'kalkulator-debit-v1.1';
+const CACHE = 'kalkulator-debit-v1.2';
 const ASSETS = [
   './debit-pintu-sorong.html',
+  './calc/pintu-sorong.js',
   './manifest.json',
   './service-worker.js',
   './assets/icon-192.png',

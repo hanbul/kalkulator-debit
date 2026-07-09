@@ -315,8 +315,8 @@
   </div>
 
 
+  <script src="./calc/pintu-sorong.js"></script>
   <script>
-    const g = 9.81;
     const CHANGELOG = {
       version: 'v1.1',
       notes: [
@@ -331,7 +331,6 @@
     const flowLine = document.getElementById('flowLine');
     const detailLine = document.getElementById('detailLine');
 
-    function cmToM(v) { return v / 100; }
     function round(v, n=2) { return Number.isFinite(v) ? Number(v).toFixed(n) : '0.00'; }
 
     const errorBox = document.getElementById('errorBox');
@@ -361,84 +360,18 @@
       errorBox.textContent = '';
     }
 
-    function parseLocaleFloat(v) {
-      return parseFloat(String(v).trim().replace(',', '.'));
-    }
-
     function calculate() {
-      const raw = {
-        h1: parseLocaleFloat(els.h1.value),
-        h2: parseLocaleFloat(els.h2.value),
-        a: parseLocaleFloat(els.a.value),
-        b: parseLocaleFloat(els.b.value),
-        cc: parseLocaleFloat(els.cc.value)
-      };
+      const res = PintuSorong.computeDischarge({
+        h1: els.h1.value, h2: els.h2.value, a: els.a.value, b: els.b.value, cc: els.cc.value
+      });
 
-      let warning = null;
+      if (!res.ok) return invalidate(res.invalid, res.message);
 
-      if (Object.values(raw).some(v => !Number.isFinite(v))) return invalidate(['h1','h2','a','b','cc'], 'Semua input harus berupa angka yang valid.');
-      if (raw.h1 <= 0) return invalidate(['h1'], 'Tinggi air di hulu harus lebih besar dari 0 cm.');
-      if (raw.h2 < 0) return invalidate(['h2'], 'Tinggi air di hilir tidak boleh negatif.');
-      if (raw.a <= 0) return invalidate(['a'], 'Bukaan pintu harus lebih besar dari 0 cm.');
-      if (raw.b <= 0) return invalidate(['b'], 'Lebar pintu harus lebih besar dari 0 cm.');
-      if (raw.cc <= 0 || raw.cc >= 1) return invalidate(['cc'], 'Koefisien kontraksi (Cc) harus di antara 0 dan 1.');
-      if (raw.h2 > raw.h1) return invalidate(['h2','h1'], 'Tinggi air di hilir tidak boleh lebih besar dari tinggi air di hulu.');
-      if (raw.a > 0.83 *raw.h1) return invalidate(['a','h1'], 'Bukaan pintu terlalu besar (a > 0.83 h1), rumus debit tidak berlaku.');
-
-      const h1 = cmToM(raw.h1);
-      const a = cmToM(raw.a);
-      let h2
-      if (raw.h2 <= 0) {
-        h2 = 0.01*h1; // set h2 to 1% of h1 if h2 is very low
-        warning = warning || 'Tinggi air di hilir ≤ 0, perhitungan menggunakan aliran bebas (free flow).';
-      } else {
-          h2 = cmToM(raw.h2);
-      }
-      const B = cmToM(raw.b);
-      const Cc = raw.cc;
-      const lambda = h2 > 0 ? h1 / h2 : Infinity;
-      const eta = (Cc * a) / h1;
-      const xi = Math.pow((1 / eta) - 1, 2) + 2 * (lambda - 1);
-
-      if (!Number.isFinite(eta) || eta <= 0) return invalidate(['cc','a','h1'], 'Nilai η tidak valid. Periksa Cc, bukaan pintu, dan tinggi air di hulu.');
-      if (!Number.isFinite(lambda)) return invalidate(['h1','h2'], 'Nilai λ tidak valid.');
-      if (!Number.isFinite(xi)) return invalidate(['h1','h2','a','cc'], 'Nilai ξ tidak valid dari kombinasi input saat ini.');
-
-      let Cd;
-      let flowType;
-      const freeFlowLimit = (Cc * a / 2) * (Math.sqrt(1 + (16 / (eta * (1 + eta)))) - 1);
-      if (!Number.isFinite(freeFlowLimit) || freeFlowLimit < 0) return invalidate(['h1','h2','a','cc'], 'Batas aliran bebas tidak valid dari kombinasi input saat ini.');
-      const freeFlow = h2 < freeFlowLimit;
-
-      if (freeFlow) {
-        Cd = Cc / Math.sqrt(1 + eta);
-        flowType = 'Kondisi aliran bebas (free flow)';
-      } else {
-        const radicand2 = (xi * xi) - Math.pow((1 / (eta * eta)) - 1, 2) * (1 - (1 / (lambda * lambda)));
-        if (!Number.isFinite(radicand2) || radicand2 < 0) return invalidate(['h1','h2','a','cc'], 'Persamaan submerged flow menghasilkan akar negatif. Periksa input.');
-        const bracket = xi - Math.sqrt(radicand2);
-        if (!Number.isFinite(bracket) || bracket < 0) return invalidate(['h1','h2','a','cc'], 'Bagian dalam akar pada Cd submerged flow tidak valid.');
-        const numerator = Math.sqrt(bracket);
-        const denominator = (1 / eta) - eta;
-        if (!Number.isFinite(denominator) || denominator <= 0) return invalidate(['h1','a','cc'], 'Penyebut pada persamaan Cd submerged flow tidak valid.');
-        Cd = Cc * (numerator / denominator);
-        flowType = 'Kondisi aliran tenggelam (submerged flow)';
-        if (!Number.isFinite(Cd) || Cd <= 0) return invalidate(['h1','h2','a','cc'], 'Nilai Cd tidak valid dari persamaan submerged flow.');
-      }
-
-      const Q = Cd * B * a * Math.sqrt(2 * g * h1);
-      const litersPerSecond = Q * 1000;
-      if (!Number.isFinite(Q) || Q < 0) return invalidate(['h1','h2','a','b','cc'], 'Debit hasil perhitungan tidak valid.');
-
-      if (warning) {
-        notify(warning);
-      } else {
-        clearError();
-      }
-      resultValue.textContent = round(litersPerSecond);
-      cdLine.textContent = `Koefisien aliran (Cd) = ${round(Cd, 2)}`;
-      flowLine.textContent = flowType;
-      detailLine.textContent = `Q = ${round(Q, 4)} m³/s, λ = ${Number.isFinite(lambda) ? round(lambda, 3) : '-'}, η = ${round(eta, 3)}, ξ = ${Number.isFinite(xi) ? round(xi, 3) : '-'}, batas bebas = ${Number.isFinite(freeFlowLimit) ? round(freeFlowLimit, 3) : '-'} m`;
+      if (res.warning) notify(res.warning); else clearError();
+      resultValue.textContent = round(res.litersPerSecond);
+      cdLine.textContent = `Koefisien aliran (Cd) = ${round(res.Cd, 2)}`;
+      flowLine.textContent = res.flowType;
+      detailLine.textContent = `Q = ${round(res.Q, 4)} m³/s, λ = ${Number.isFinite(res.lambda) ? round(res.lambda, 3) : '-'}, η = ${round(res.eta, 3)}, ξ = ${Number.isFinite(res.xi) ? round(res.xi, 3) : '-'}, batas bebas = ${Number.isFinite(res.freeFlowLimit) ? round(res.freeFlowLimit, 3) : '-'} m`;
     }
 
     Object.values(els).forEach(el => el.addEventListener('input', calculate));

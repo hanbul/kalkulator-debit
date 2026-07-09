@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test — pintu sorong</title>
+  <style>
+    body { font-family: monospace; padding: 16px; }
+    .pass { color: #1b7f37; }
+    .fail { color: #c62828; font-weight: bold; }
+    h1 { font-size: 18px; }
+    pre { margin: 2px 0; }
+  </style>
+</head>
+<body>
+  <h1>Safety net — PintuSorong.computeDischarge</h1>
+  <div id="out"></div>
+  <script src="../calc/pintu-sorong.js"></script>
+  <script>
+    // Golden values captured from the pre-refactor inline code (rounded as the UI rounds).
+    function round(v, n) { return Number.isFinite(v) ? Number(v).toFixed(n) : '-'; }
+    const out = document.getElementById('out');
+    let failures = 0;
+
+    function log(ok, msg) {
+      if (!ok) failures++;
+      const p = document.createElement('pre');
+      p.className = ok ? 'pass' : 'fail';
+      p.textContent = (ok ? 'PASS ' : 'FAIL ') + msg;
+      out.appendChild(p);
+    }
+
+    // ok-case: assert rounded outputs match golden strings
+    function checkOk(name, input, gold) {
+      const r = PintuSorong.computeDischarge(input);
+      if (!r.ok) { log(false, name + ': expected ok, got error "' + r.message + '"'); return; }
+      const got = {
+        ls: round(r.litersPerSecond, 2), cd: round(r.Cd, 2), flow: r.flowType,
+        Q: round(r.Q, 4), lambda: round(r.lambda, 3), eta: round(r.eta, 3),
+        xi: round(r.xi, 3), limit: round(r.freeFlowLimit, 3), warn: !!r.warning
+      };
+      const keys = Object.keys(gold);
+      const bad = keys.filter(k => String(got[k]) !== String(gold[k]));
+      log(bad.length === 0, name + (bad.length ? ' — mismatch: ' + bad.map(k => k + ' got ' + got[k] + ' want ' + gold[k]).join(', ') : ''));
+    }
+
+    // error-case: assert not ok, message + invalid ids match
+    function checkErr(name, input, message, invalid) {
+      const r = PintuSorong.computeDischarge(input);
+      const ok = !r.ok && r.message === message && JSON.stringify(r.invalid) === JSON.stringify(invalid);
+      log(ok, name + (ok ? '' : ' — got ' + JSON.stringify(r)));
+    }
+
+    checkOk('free_small_tail', {h1:100,h2:10,a:20,b:100,cc:0.6},
+      {ls:'502.25', cd:'0.57', flow:'Kondisi aliran bebas (free flow)', Q:'0.5023', lambda:'10.000', eta:'0.120', xi:'71.778', limit:'0.597', warn:false});
+
+    checkOk('submerged', {h1:100,h2:90,a:20,b:100,cc:0.6},
+      {ls:'194.04', cd:'0.22', flow:'Kondisi aliran tenggelam (submerged flow)', Q:'0.1940', lambda:'1.111', eta:'0.120', xi:'54.000', limit:'0.597', warn:false});
+
+    checkOk('h2_zero_fallback', {h1:100,h2:0,a:20,b:100,cc:0.6},
+      {ls:'502.25', cd:'0.57', flow:'Kondisi aliran bebas (free flow)', Q:'0.5023', lambda:'100.000', eta:'0.120', xi:'251.778', limit:'0.597', warn:true});
+
+    checkOk('submerged_alt', {h1:80,h2:60,a:15,b:120,cc:0.61},
+      {ls:'258.04', cd:'0.36', flow:'Kondisi aliran tenggelam (submerged flow)', Q:'0.2580', lambda:'1.333', eta:'0.114', xi:'60.623', limit:'0.469', warn:false});
+
+    checkErr('err_a_gt_083h1', {h1:100,h2:10,a:90,b:100,cc:0.6},
+      'Bukaan pintu terlalu besar (a > 0.83 h1), rumus debit tidak berlaku.', ['a','h1']);
+
+    checkErr('err_h2_gt_h1', {h1:50,h2:60,a:10,b:100,cc:0.6},
+      'Tinggi air di hilir tidak boleh lebih besar dari tinggi air di hulu.', ['h2','h1']);
+
+    // comma-decimal parsed identically to period (invariant, no magic number needed)
+    (function () {
+      const a = PintuSorong.computeDischarge({h1:100,h2:10,a:'12,5',b:100,cc:'0,6'});
+      const b = PintuSorong.computeDischarge({h1:100,h2:10,a:12.5,b:100,cc:0.6});
+      log(a.ok && b.ok && a.litersPerSecond === b.litersPerSecond,
+        'comma_equals_period' + (a.ok && b.ok ? '' : ' — one side errored: ' + JSON.stringify([a,b])));
+    })();
+
+    const summary = document.createElement('h1');
+    summary.className = failures ? 'fail' : 'pass';
+    summary.textContent = failures ? (failures + ' FAILED') : 'ALL PASSED';
+    out.appendChild(summary);
+    window.__testFailures = failures;
+  </script>
+</body>
+</html>
